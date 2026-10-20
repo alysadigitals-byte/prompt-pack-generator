@@ -40,10 +40,38 @@
 const firebaseConfig = {apiKey:"AIzaSyA0YwsNXIN2JkrI39SZY0farqxOIXiub2M",authDomain:"prompt-pack-studio-c07c4.firebaseapp.com",projectId:"prompt-pack-studio-c07c4",storageBucket:"prompt-pack-studio-c07c4.firebasestorage.app",messagingSenderId:"898964970704",appId:"1:898964970704:web:4d9be414a70ad3959a52d5"};
 firebase.initializeApp(firebaseConfig);const auth=firebase.auth(),db=firebase.firestore();const ADMIN_EMAIL="alysa.digitals@gmail.com";const gate=document.getElementById("authGate"),pending=document.getElementById("pendingGate"),appMain=document.getElementById("appMain"),adminPanel=document.getElementById("adminPanel"),authMessage=document.getElementById("authMessage");
 function showOnly(which){gate.hidden=which!=="login";pending.hidden=which!=="pending";document.getElementById("dashboard").hidden=which!=="dashboard";appMain.hidden=which!=="app";adminPanel.hidden=which!=="admin";document.getElementById("avatarTool").hidden=which!=="avatar";document.getElementById("logoutBtn").hidden=which==="login";}
-function authError(e){authMessage.textContent=({"auth/invalid-credential":"Email or password is incorrect.","auth/email-already-in-use":"This email already has an account. Please sign in.","auth/weak-password":"Use a password with at least 6 characters.","auth/invalid-email":"Please enter a valid email address.","auth/too-many-requests":"Too many attempts. Please wait and try again."})[e.code]||e.message||"Something went wrong.";}
+function authError(e){
+  const messages={
+    "auth/invalid-credential":"Email or password is incorrect. Check the exact email and password, then try again.",
+    "auth/wrong-password":"Email or password is incorrect. Check the exact email and password, then try again.",
+    "auth/user-not-found":"No sign-in account was found for that email. Check the email address you used when registering.",
+    "auth/email-already-in-use":"This email already has an account. Please sign in instead of creating another account.",
+    "auth/weak-password":"Use a password with at least 6 characters.",
+    "auth/invalid-email":"Please enter a valid email address.",
+    "auth/too-many-requests":"Too many attempts. Wait a while before trying again.",
+    "auth/network-request-failed":"Network connection failed. Check your internet connection and try again.",
+    "auth/operation-not-allowed":"Email/password sign-in is disabled in Firebase Authentication. The site owner needs to check the Firebase sign-in provider.",
+    "auth/user-disabled":"This account has been disabled in Firebase Authentication.",
+    "auth/missing-email":"Enter the email address first.",
+    "auth/unauthorized-continue-uri":"Firebase rejected the password-reset link configuration. Check the authorized domain and email action settings.",
+    "auth/invalid-continue-uri":"The password-reset link configuration is invalid. Check Firebase Authentication email action settings."
+  };
+  authMessage.textContent=messages[e.code]||("Request failed"+(e.code?" ("+e.code+")":"")+". "+(e.message||"Please try again."));
+}
 document.getElementById("loginBtn").onclick=async()=>{try{authMessage.textContent="Signing in…";await auth.signInWithEmailAndPassword(document.getElementById("authEmail").value.trim(),document.getElementById("authPassword").value);}catch(e){authError(e)}};
 document.getElementById("registerBtn").onclick=async()=>{try{authMessage.textContent="Creating account…";const c=await auth.createUserWithEmailAndPassword(document.getElementById("authEmail").value.trim(),document.getElementById("authPassword").value);if(c.user.email.toLowerCase()!==ADMIN_EMAIL)await db.collection("members").doc(c.user.uid).set({email:c.user.email,approved:false,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}catch(e){authError(e)}};
-document.getElementById("resetBtn").onclick=async()=>{try{const email=document.getElementById("authEmail").value.trim();if(!email)throw Error("Enter your email first.");await auth.sendPasswordResetEmail(email);authMessage.textContent="Password reset email sent if this address is registered."}catch(e){authError(e)}};
+document.getElementById("resetBtn").onclick=async()=>{
+  const email=document.getElementById("authEmail").value.trim();
+  authMessage.textContent="";
+  if(!email){authMessage.textContent="Enter the exact email address used for your existing account first.";document.getElementById("authEmail").focus();return;}
+  const button=document.getElementById("resetBtn");
+  button.disabled=true;
+  try{
+    await auth.sendPasswordResetEmail(email);
+    authMessage.textContent="Firebase accepted the reset request. This does not confirm delivery. Check Inbox, Spam/Junk, Promotions, and All Mail for the same email address. If no message arrives, do not create another account; check Firebase Authentication email templates and delivery settings.";
+  }catch(e){authError(e)}
+  finally{button.disabled=false;}
+};
 async function loadMembers(){const list=document.getElementById("memberList");try{const snap=await db.collection("members").get();if(snap.empty){list.textContent="No member accounts yet.";return}list.innerHTML="";snap.forEach(doc=>{const m=doc.data(),row=document.createElement("div");row.style.cssText="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #394660;flex-wrap:wrap";const label=document.createElement("span");label.textContent=(m.email||doc.id)+" — "+(m.approved?"Approved":"Pending");const btn=document.createElement("button");btn.textContent=m.approved?"Revoke access":"Approve";btn.onclick=async()=>{btn.disabled=true;try{await db.collection("members").doc(doc.id).update({approved:!m.approved,reviewedAt:firebase.firestore.FieldValue.serverTimestamp()});await loadMembers()}catch(e){label.textContent+=" (error: "+e.message+")";btn.disabled=false}};row.append(label,btn);list.append(row)})}catch(e){list.textContent="Could not load members: "+e.message+". Check the Firestore rules below."}}
 let signedInUserIsAdmin=false;
 auth.onAuthStateChanged(async user=>{document.getElementById("accountStatus").textContent=user?user.email:"MEMBER ACCESS";if(!user){showOnly("login");return}try{signedInUserIsAdmin=(user.email||"").toLowerCase()===ADMIN_EMAIL;document.getElementById("dashboardAccount").textContent=user.email||"";document.getElementById("dashboardAdminBtn").hidden=!signedInUserIsAdmin;if(signedInUserIsAdmin){showOnly("dashboard");return}const ref=db.collection("members").doc(user.uid),snap=await ref.get();if(!snap.exists){await ref.set({email:user.email||"",approved:false,createdAt:firebase.firestore.FieldValue.serverTimestamp()});showOnly("pending");return}if(snap.data().approved===true){showOnly("dashboard")}else{showOnly("pending")}}catch(e){showOnly("login");authMessage.textContent="Access check failed: "+e.message+". Please check that the Firestore rules have been published."}});
