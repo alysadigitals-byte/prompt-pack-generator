@@ -84,39 +84,52 @@ document.getElementById("openPromptPack").onclick=()=>showOnly("app");document.g
 function valueOf(id){const el=$(id);return el?el.value.trim():''}
 function avatarPromptText(){
  const mode=valueOf('avMode'),style=valueOf('avStyle'),looks=valueOf('avLooks'),type=valueOf('avType'),outfit=valueOf('avOutfit'),background=valueOf('avBackground'),camera=valueOf('avCamera'),framing=valueOf('avFraming'),ratio=valueOf('avRatio'),description=valueOf('avDescription'),custom=valueOf('avCustom');
- const identity=mode==='photo'?'Use the original-person reference image attached in the AI image generator as the authoritative identity source. Preserve the same recognizable face, facial proportions, skin tone, and distinctive features. Do not replace or blend identities.':'Create a new person based on the description and settings below.';
- const looksText=looks==='reference'?'Use the provided reference image in the destination AI image generator for hairstyle and makeup ONLY. Preserve the original person’s identity; do not copy the reference person’s face.':'Create a hairstyle and makeup look that suits the selected visual style and overall concept.';
- const outfitText=outfit==='Use provided outfit reference image'?'Use the provided outfit reference image for clothing and accessories only; do not copy the reference person’s identity.':outfit;
- const bgText=background==='Use provided background reference image'?'Use the provided background reference image for the environment and composition only.':background;
+ const identity=mode==='photo'?'Preserve the identity of the person shown in IMAGE 1. IMAGE 1 is the sole identity authority. Keep the same recognizable face, facial structure and proportions, eyes, nose, lips, jawline, skin tone, and distinctive features. Do not replace, beautify into a different person, or blend this identity with anyone in other reference images.':'Create a new person based on the settings and description below. Do not infer an existing identity from styling or outfit references.';
+ const looksText=looks==='reference'?'Copy ONLY the hairstyle and makeup from the LOOKS REFERENCE image listed below. Transfer the hairstyle (cut, length, part, texture, volume, and color) and makeup (colors, placement, eyeliner, lashes, blush, and lip finish) as visibly shown. Do NOT copy that image subject’s face, facial proportions, skin identity, expression, or overall identity. Apply those looks to the person defined by IMAGE 1 (or to the newly created person in text-to-image mode). Keep hairstyle and makeup consistent; do not let the outfit reference alter them.':'Create a suitable hairstyle and makeup from the selected style and user instructions. No looks-reference image is required.';
+ const outfitText=outfit==='Use provided outfit reference image'?'Copy clothing and accessories ONLY from the OUTFIT REFERENCE image listed below. Do not copy its face, hairstyle, makeup, body identity, pose, or background. Keep the selected person’s identity and looks unchanged.':'Use this outfit direction: '+outfit+'.';
+ const bgText=background==='Use provided background reference image'?'Use the BACKGROUND REFERENCE image listed below for environment and background composition only. Do not copy the person, outfit, hairstyle, or makeup from it.':'Use this background direction: '+background+'.';
+ const roles=[];
+ if(mode==='photo') roles.push('IMAGE 1 — ORIGINAL PERSON / IDENTITY: the person whose identity must be preserved.');
+ if(looks==='reference') roles.push('IMAGE '+(roles.length+1)+' — LOOKS REFERENCE: hairstyle and makeup ONLY; never identity.');
+ if(outfit==='Use provided outfit reference image') roles.push('IMAGE '+(roles.length+1)+' — OUTFIT REFERENCE: clothing and accessories ONLY.');
+ if(background==='Use provided background reference image') roles.push('IMAGE '+(roles.length+1)+' — BACKGROUND REFERENCE: background/environment ONLY.');
+ const roleText=roles.length?roles.map((r,i)=>String(i+1)+'. '+r.replace(/^IMAGE \d+ — /,'IMAGE '+(i+1)+' — ')).join('\n'):'No reference images are required for the selected settings.';
  return `UNIVERSAL AI AVATAR IMAGE PROMPT
 
 TASK
-Create one polished image using the selected settings. Visual style: ${style}. Creation mode: ${mode==='photo'?'Original-person reference / identity preservation':'Text-to-image / create a new person'}.
+Create one polished image. Visual style: ${style}. Creation mode: ${mode==='photo'?'Original-person reference / identity preservation':'Text-to-image / create a new person'}.
 
-IDENTITY & SUBJECT
+REFERENCE IMAGE ORDER — CRITICAL
+Attach only the images required by the selected settings, in the exact order listed here. The image number is based on attachment order in the destination AI image generator. Do not treat all images as interchangeable and do not merge their roles.
+${roleText}
+If a role is not selected, do not attach an image for that role. Keep the remaining images in the exact order listed above and follow their assigned roles.
+
+IDENTITY LOCK
 ${identity}
 Person / avatar type: ${type}.
 Person description: ${description||'Use the selected settings to create a coherent, visually appealing subject.'}
 
-LOOKS REFERENCE
+LOOKS — HAIRSTYLE & MAKEUP
 ${looksText}
 
-OUTFIT & BACKGROUND
-Outfit: ${outfitText}.
-Background: ${bgText}.
+OUTFIT
+${outfitText}
+
+BACKGROUND
+${bgText}
+
+ROLE SEPARATION — DO NOT OVERRIDE
+The original-person image determines WHO the person is. The looks reference determines ONLY hairstyle and makeup. The outfit reference determines ONLY clothing and accessories. The background reference determines ONLY the setting. Never copy a reference subject’s identity into another role. Do not let outfit or background references change the chosen hairstyle, makeup, or face. Apply all selected changes to one consistent subject.
 
 COMPOSITION
 Camera angle: ${camera}. Framing: ${framing}. Image ratio: ${ratio}. Keep anatomy, perspective, lighting, shadows, and proportions coherent.
-
-REFERENCE RULES
-Use only reference images actually attached in the destination AI image generator. Keep each reference limited to its intended role. Do not invent details that are not visible or specified. If the original-person reference is used, preserve that person's identity while applying only the requested styling changes.
 
 QUALITY
 Create a clean, high-quality result with natural anatomy, detailed hair and clothing, consistent lighting, and a clear composition. Avoid identity drift, face blending, distorted hands, extra fingers or limbs, warped clothing, accidental text, and watermarks.
 ${custom?'\nCUSTOM INSTRUCTIONS\n'+custom:''}
 
 USAGE
-Attach the original-person image if identity preservation is required. For reference-based looks, outfit, or background, attach the relevant image directly to the AI image generator and identify its role. This prompt builder does not upload, inspect, or generate images.`;
+This prompt builder does not upload, inspect, or generate images. Attach the required reference images directly in the destination AI image generator in the exact order specified above. If the generator has image labels or reference slots, label each image with its role. Identity preservation is an instruction, not a guarantee; results depend on the generator’s reference-image controls.`;
 }
 $('makeAvatarPrompt').onclick=()=>{$('avatarPrompt').textContent=avatarPromptText();$('avatarPromptStatus').textContent='Prompt generated. Attach any required reference images directly in your AI image generator.'};
 $('copyAvatarPrompt').onclick=async()=>{const t=$('avatarPrompt').textContent;if(!t||t==='Your avatar prompt will appear here.'){$('avatarPromptStatus').textContent='Generate a prompt first.';return}try{await navigator.clipboard.writeText(t);$('avatarPromptStatus').textContent='Prompt copied.'}catch(e){$('avatarPromptStatus').textContent='Clipboard unavailable; select and copy the prompt manually.'}};
