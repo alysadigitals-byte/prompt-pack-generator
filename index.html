@@ -27,7 +27,7 @@
 <header style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:26px"><div style="font-size:22px;font-weight:800;flex:1 1 100%">◉ AI Avatar Studio</div><button id="avatarBack" type="button">← Dashboard</button><button id="avatarLogout" type="button">Sign out</button></header>
 <h1 style="font-size:clamp(30px,5vw,48px);margin:0 0 12px">Create your new look.</h1><p style="color:#a6b4d0;line-height:1.6;max-width:720px">Choose a style and creation mode, then generate a prompt. Add reference images directly in your chosen AI image generator—not here.</p>
 <div class="layout" style="margin-top:24px"><section class="panel"><h2>Avatar settings</h2><p class="hint">A short setup with one optional custom-instructions box.</p>
-<label for="avStyle">1. Visual style</label><select id="avStyle"><option>Photorealistic</option><option>3D character</option><option>Anime</option><option>Cartoon</option><option>Digital illustration</option><option>Fantasy</option><option>Pixel art</option><option>Watercolor</option><option>Custom</option></select>
+<label for="avStyle">1. Visual style</label><select id="avStyle"><option>Photorealistic</option><option>Ultra-realistic / ultra-high-definition</option><option>3D character</option><option>Anime</option><option>Cartoon</option><option>Digital illustration</option><option>Fantasy</option><option>Pixel art</option><option>Watercolor</option><option>Custom</option></select>
 <label for="avMode">2. Creation mode</label><select id="avMode"><option value="photo">Use original person — preserve identity</option><option value="text">Create a new person from text</option></select>
 <label for="avLooks">3. Looks reference</label><select id="avLooks"><option value="describe">Create a look from selected options</option><option value="reference">Use provided image for hairstyle and makeup</option></select>
 <label for="avOutfit">4. Outfit</label><select id="avOutfit"><option>Elegant / classy</option><option>Casual</option><option>Formal</option><option>Streetwear</option><option>Business attire</option><option>Traditional clothing</option><option>Use provided outfit reference image</option></select>
@@ -84,7 +84,8 @@ document.getElementById("openPromptPack").onclick=()=>showOnly("app");document.g
 function valueOf(id){const el=$(id);return el?el.value.trim():''}
 function avatarPromptText(){
  const mode=valueOf('avMode'),style=valueOf('avStyle'),looks=valueOf('avLooks'),type=valueOf('avType'),outfit=valueOf('avOutfit'),background=valueOf('avBackground'),camera=valueOf('avCamera'),framing=valueOf('avFraming'),ratio=valueOf('avRatio'),description=valueOf('avDescription'),custom=valueOf('avCustom');
- const identity=mode==='photo'?'Preserve the identity of the person shown in IMAGE 1. IMAGE 1 is the sole identity authority. Keep the same recognizable face, facial structure and proportions, eyes, nose, lips, jawline, skin tone, and distinctive features. Do not replace, beautify into a different person, or blend this identity with anyone in other reference images.':'Create a new person based on the settings and description below. Do not infer an existing identity from styling or outfit references.';
+ const identity=mode==='photo'?'Use IMAGE 1 as the sole identity source. Preserve the person’s recognizable identity and core facial structure, proportions, eyes, nose, lips, jawline, skin tone, and distinctive marks, while allowing natural changes required by the selected visual style, expression, lighting, makeup, and hairstyle. Do not copy or blend another reference subject’s identity. Do not force photographic texture when a stylized style is selected.':'Create a new person based on the settings and description below. Do not infer an existing identity from styling or outfit references.';
+ const styleLock=style==='Ultra-realistic / ultra-high-definition'||style==='Photorealistic'?'STYLE LOCK: Render as a genuinely photographic, lifelike human image—not illustration or 3D animation. Use natural skin texture with fine pores and subtle imperfections, realistic eyes and catchlights, individual hair strands, accurate makeup edges and blending, detailed fabric, physically plausible lighting, nuanced shadows, natural color, crisp focus, and high micro-detail. Avoid plastic skin, excessive smoothing, oversharpening, fake-looking eyes, and artificial CGI appearance.':style.toLowerCase().includes('3d')?'STYLE LOCK: Render as a clearly recognizable stylized 3D character, not a photograph. Use dimensional 3D geometry, coherent materials, detailed stylized hair, deliberate character shading, realistic depth and lighting, and polished high-end 3D rendering. Transform the person into this style while preserving recognizable identity; do not let the reference photos’ photographic appearance override the 3D style.':'STYLE LOCK: The selected visual style ('+style+') must be unmistakable in the final rendering. Transform the reference appearance into this style rather than copying the reference photo’s medium. Preserve the person’s recognizable identity, and reinterpret makeup, hairstyle, clothing, lighting, and textures consistently within the selected style. Do not default to photorealism unless photorealism is selected.';
  const looksText=looks==='reference'?'Treat the LOOKS REFERENCE image as the authoritative guide for the COMPLETE visible makeup look and hairstyle—not merely general inspiration. Reproduce the makeup as closely as the target generator allows, including base/foundation coverage and finish; concealer; blush shade, placement, intensity, and blending; contour and bronzer placement; highlight; eyebrow shape, arch, thickness, color, and fill; eyeshadow colors and placement; eyeliner style, shape, thickness, and wing; lash length, volume, and definition; lower lash line or waterline if visible; lip liner, lipstick/gloss color, finish, shape, and coverage; and the overall balance, intensity, and blending of the makeup. Match visible colors, edges, gradients, and placement rather than substituting a generic glam look. Copy only details that are visible; do not invent makeup hidden by the angle or lighting. Match the hairstyle too, including cut, length, parting, hairline, bangs, color, highlights, texture, curl pattern, volume, and styling. Do NOT copy the looks-reference subject’s face, facial proportions, skin identity, age, expression, or overall identity. Apply these makeup and hairstyle details to the person defined by IMAGE 1, while preserving IMAGE 1’s facial identity and natural skin tone. Keep the makeup and hairstyle consistent in the final image; the outfit reference must not alter either.':'Create a suitable hairstyle and makeup from the selected style and user instructions. No looks-reference image is required.';
  const outfitText=outfit==='Use provided outfit reference image'?'Copy clothing and accessories ONLY from the OUTFIT REFERENCE image listed below. Do not copy its face, hairstyle, makeup, body identity, pose, or background. Keep the selected person’s identity and looks unchanged.':'Use this outfit direction: '+outfit+'.';
  const bgText=background==='Use provided background reference image'?'Use the BACKGROUND REFERENCE image listed below for environment and background composition only. Do not copy the person, outfit, hairstyle, or makeup from it.':'Use this background direction: '+background+'.';
@@ -97,15 +98,18 @@ function avatarPromptText(){
  return `UNIVERSAL AI AVATAR IMAGE PROMPT
 
 TASK
-Create one polished image. Visual style: ${style}. Creation mode: ${mode==='photo'?'Original-person reference / identity preservation':'Text-to-image / create a new person'}.
+Create one polished image. Visual style: ${style}. The selected visual style is a primary requirement and must visibly control the final rendering. Creation mode: ${mode==='photo'?'Original-person reference / identity preservation':'Text-to-image / create a new person'}.
 
 REFERENCE IMAGE ORDER — CRITICAL
 Attach only the images required by the selected settings, in the exact order listed here. The image number is based on attachment order in the destination AI image generator. Do not treat all images as interchangeable and do not merge their roles.
 ${roleText}
 If a role is not selected, do not attach an image for that role. Keep the remaining images in the exact order listed above and follow their assigned roles.
 
-IDENTITY LOCK
+IDENTITY LOCK — BALANCED PRESERVATION
 ${identity}
+
+VISUAL STYLE LOCK
+${styleLock}
 Person / avatar type: ${type}.
 Person description: ${description||'Use the selected settings to create a coherent, visually appealing subject.'}
 
@@ -124,8 +128,8 @@ The original-person image determines WHO the person is. The looks reference dete
 COMPOSITION
 Camera angle: ${camera}. Framing: ${framing}. Image ratio: ${ratio}. Keep anatomy, perspective, lighting, shadows, and proportions coherent.
 
-QUALITY
-Create a clean, high-quality result with natural anatomy, detailed hair and clothing, consistent lighting, and a clear composition. Avoid identity drift, face blending, distorted hands, extra fingers or limbs, warped clothing, accidental text, and watermarks.
+QUALITY & DETAIL
+Create the highest-quality, highest-resolution output supported by the target image generator and selected aspect ratio. Prioritize crisp facial detail, clean edges, detailed hair strands, accurate makeup placement and blending, realistic or style-appropriate skin/material texture, detailed fabric and accessories, coherent lighting, natural anatomy, and a clean composition. For photographic styles, preserve natural skin texture and realistic fine detail; for 3D, anime, cartoon, and other stylized modes, keep all details faithful to that selected medium instead of turning the result into a photograph. Avoid identity drift, face blending, plastic skin, unwanted blur, oversharpening, distorted hands, extra fingers or limbs, warped clothing, accidental text, and watermarks. Resolution and fidelity ultimately depend on the target generator and its available settings.
 ${custom?'\nCUSTOM INSTRUCTIONS\n'+custom:''}
 
 USAGE
